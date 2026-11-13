@@ -18,13 +18,14 @@
 from .. import database
 from ..parser import Parser
 from .backend import ParserBackend
-import json
+import os
 
 from tkinter import _flatten
 
 from src.scannet_classes import SCANNET_OBJECTS, UNIQUE_SR3D_OBJECTS, SR3D_OBJECTS, REL_ALIASES, VIEW_DEP_RELS
 import nltk
-nltk.data.path.append('/data1/gxy/nltk_data')
+if os.environ.get('NLTK_DATA'):
+    nltk.data.path.append(os.environ['NLTK_DATA'])
 
 from nltk.corpus import wordnet as wn
 __all__ = ['SpacyParser']
@@ -66,7 +67,6 @@ class SpacyParser(ParserBackend):
         
         # note object class
         # 1. mapping_full2rio27.json 
-        # self.mapping_full2rio27 = json.load(open("/data1/gxy/project/CRIS.pytorch-master/mapping_full2rio27.json", "r"))
         # # self.obj_cls = list(self.mapping_full2rio27.keys())
         # # 2. src/scannet_classes.py 
         # self.obj_cls = self.obj_cls + SCANNET_OBJECTS + UNIQUE_SR3D_OBJECTS + SR3D_OBJECTS
