@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this code or reconstructed data, please cite our paper and CRIS."
+title: "Rethinking Language Bias in Referring Image Segmentation via Linguistically Enriched Data Reconstruction and Semantic Alignment"
+type: software
+authors:
+  - family-names: Zhang
+    given-names: Lu
+  - family-names: Guo
+    given-names: Xiaoyu
+  - family-names: Zhuge
+    given-names: Yunzhi
+  - family-names: Zhang
+    given-names: Wenbo
+  - family-names: Hu
+    given-names: Ping
+  - family-names: Lu
+    given-names: Huchuan
+  - family-names: He
+    given-names: You
+doi: 10.1109/TIP.2026.3748959
+date-released: 2026-11-06
+license: MIT
+repository-code: "TO_BE_ADDED"

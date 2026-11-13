@@ -29,6 +29,7 @@ def get_parser():
                         default=None,
                         nargs=argparse.REMAINDER,
                         help='override some settings in the config.')
+    parser.add_argument("--checkpoint", required=True, type=str, help="checkpoint to evaluate")
     args = parser.parse_args()
     assert args.config is not None
     cfg = config.load_cfg_from_cfg_file(args.config)
@@ -105,8 +106,7 @@ def main():
 
     model = torch.nn.DataParallel(model)
     logger.info(model)
-    args.model_dir = '/data1/gxy/project/RIS/CRIS.pytorch-master_text1_2cross_att_both_parse/exp_test/consistency/refcoco-R/CRIS/soft/val/new_best_model.pth'
-    # args.model_dir = os.path.join(args.output_dir, "best_model.pth")
+    args.model_dir = args.checkpoint
     if os.path.isfile(args.model_dir):
         logger.info("=> loading checkpoint '{}'".format(args.model_dir))
         checkpoint = torch.load(args.model_dir)
