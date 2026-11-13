@@ -1,0 +1,83 @@
+DATA:
+
+  dataset: refcoco
+  train_lmdb: /data1/gxy/CRIS_data/data_raw/lmdb/refcoco/train.lmdb
+  new_train_lmdb: /data1/gxy/CRIS_data/data_new/lmdb/refcoco/train.lmdb
+  train_split: train
+  val_lmdb: /data1/gxy/CRIS_data/data_raw/lmdb/refcoco/val.lmdb
+  val_split: val
+  new_val_lmdb: /data1/gxy/CRIS_data/data_new/lmdb/refcoco/val.lmdb
+  mask_root: /data1/gxy/CRIS_data/data_raw/masks/refcoco
+  data_root: /data1/gxy/dataset/dataset
+  split: unc
+  is_decouple: True
+  if_two_branches: True
+  type: raw
+
+aug:
+  num_bgs: 1
+  blur: False
+  t2i_only: True
+  fp_restrict: False
+  aug_prob: 0.6
+  retrieval_epoch: 14
+  mix_grid: False
+  rand_prob: 0.3
+  retr_prob: 0.3
+  top_k: 400
+  move_crs_pnt: False
+  rand_crs: False
+  i2i_sim_thres: 0.85
+  t2i_sim_thres: 0.25
+  
+TRAIN:
+  # Base Arch
+  clip_pretrain: /data1/gxy/project/RIS/CRIS/pretrain/RN101.pt
+  input_size: 416
+  word_len: 60
+  word_en_length: 60
+  word_dim: 512
+  vis_dim: 512
+  fpn_in: [512, 1024, 512]
+  fpn_out: [256, 512, 1024]
+  sync_bn: True
+  # Decoder
+  num_layers: 3
+  num_head: 8
+  dim_ffn: 2048
+  dropout: 0.1
+  intermediate: False
+  # Training Setting
+  workers: 16 # data loader workers
+  workers_val: 16
+  epochs: 50
+  milestones: [35]
+  start_epoch: 0
+  batch_size: 64 # batch size for training
+  batch_size_val: 32 # batch size for validation during training, memory and speed tradeoff
+  base_lr: 0.00005
+  lr_decay: 0.1
+  lr_multi: 0.1
+  weight_decay: 0.
+  max_norm: 0.
+  manual_seed: 0
+  print_freq: 100
+  # Resume & Save
+  exp_name: CRIS/ours/val
+  #exp_parse_dim_lr0.00005_with_txt_loss:加了视觉感知的文本的对比损失
+  output_folder: exp_test/vis/refcoco-R
+  save_freq: 1
+  weight:  # path to initial weight (default: none)
+  resume:  
+  evaluate: True  # evaluate on validation set, extra gpu memory needed and small batch_size_val is recommend
+Distributed:
+  dist_url: tcp://localhost:8594
+  dist_backend: 'nccl'
+  multiprocessing_distributed: True
+  world_size: 1
+  rank: 0
+TEST:
+  test_split: val
+  test_lmdb: /data1/gxy/CRIS_data/data_new/lmdb/refcoco/val.lmdb
+  val_split: val
+  visualize: False
