@@ -20,15 +20,20 @@ from ..parser import Parser
 from .backend import ParserBackend
 import os
 
-from tkinter import _flatten
-
-from src.scannet_classes import SCANNET_OBJECTS, UNIQUE_SR3D_OBJECTS, SR3D_OBJECTS, REL_ALIASES, VIEW_DEP_RELS
 import nltk
 if os.environ.get('NLTK_DATA'):
     nltk.data.path.append(os.environ['NLTK_DATA'])
 
 from nltk.corpus import wordnet as wn
 __all__ = ['SpacyParser']
+
+
+def _flatten(items):
+    for item in items:
+        if isinstance(item, (list, tuple)):
+            yield from _flatten(item)
+        else:
+            yield item
 
 @Parser.register_backend
 class SpacyParser(ParserBackend):
@@ -65,11 +70,6 @@ class SpacyParser(ParserBackend):
         except OSError as e:
             raise ImportError('Unable to load the English model. Run `python -m spacy download en` first.') from e
         
-        # note object class
-        # 1. mapping_full2rio27.json 
-        # # self.obj_cls = list(self.mapping_full2rio27.keys())
-        # # 2. src/scannet_classes.py 
-        # self.obj_cls = self.obj_cls + SCANNET_OBJECTS + UNIQUE_SR3D_OBJECTS + SR3D_OBJECTS
 
 
     ##############################
