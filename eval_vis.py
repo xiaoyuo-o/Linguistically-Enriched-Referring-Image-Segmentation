@@ -412,25 +412,25 @@ def main():
     parser.add_argument(
         "--pt_dir",
         type=str,
-        default="/data1/gxy/project/RIS/CRIS.pytorch-master_text1_2cross_att_both_parse/exp_test/vis/refcoco-R/CRIS/ours/val/attn_fixed",
+        required=True,
         help="保存 attention .pt 文件的文件夹",
     )
     parser.add_argument(
         "--img_dir",
         type=str,
-        default="/data1/gxy/dataset/dataset/images/mscoco/images/train2014",
+        required=True,
         help="COCO 原图路径",
     )
     parser.add_argument(
         "--save_dir",
         type=str,
-        default="/data1/gxy/project/RIS/CRIS.pytorch-master_text1_2cross_att_both_parse/exp_test/vis/refcoco-R/CRIS/ours/val/output_attn_clean",
+        required=True,
         help="可视化结果保存路径",
     )
     parser.add_argument(
         "--data_root",
         type=str,
-        default="/data1/gxy/dataset/dataset",
+        required=True,
         help="REFER 数据根目录，里面应该有 refcoco/refs(unc).p 和 refcoco/instances.json",
     )
     parser.add_argument("--dataset", type=str, default="refcoco")
