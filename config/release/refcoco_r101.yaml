@@ -1,0 +1,85 @@
+DATA:
+  dataset: refcoco
+  train_lmdb: data/refcoco/raw/train.lmdb
+  new_train_lmdb: data/refcoco/enhanced/train.lmdb
+  train_split: train
+  val_lmdb: data/refcoco/raw/val.lmdb
+  val_split: val
+  new_val_lmdb: data/refcoco/enhanced/val.lmdb
+  mask_root: data/refcoco/masks
+  data_root: data/refer
+  split: unc
+  is_decouple: true
+  if_two_branches: true
+  type: raw
+  t2i_similarity_lmdb: data/refcoco/similarity/t2i_similarity.lmdb
+  enhanced_t2i_similarity_lmdb: data/refcoco/similarity/t2i_similarity_en.lmdb
+  i2i_similarity_lmdb: data/refcoco/similarity/i2i_similarity.lmdb
+aug:
+  num_bgs: 1
+  blur: false
+  t2i_only: true
+  fp_restrict: false
+  aug_prob: 0.6
+  retrieval_epoch: 14
+  mix_grid: false
+  rand_prob: 0.3
+  retr_prob: 0.3
+  top_k: 400
+  move_crs_pnt: false
+  rand_crs: false
+  i2i_sim_thres: 0.85
+  t2i_sim_thres: 0.25
+TRAIN:
+  clip_pretrain: weights/RN101.pt
+  input_size: 416
+  word_len: 60
+  word_en_length: 60
+  word_dim: 512
+  vis_dim: 512
+  fpn_in:
+  - 512
+  - 1024
+  - 512
+  fpn_out:
+  - 256
+  - 512
+  - 1024
+  sync_bn: true
+  num_layers: 3
+  num_head: 8
+  dim_ffn: 2048
+  dropout: 0.1
+  intermediate: false
+  workers: 16
+  workers_val: 16
+  epochs: 50
+  milestones:
+  - 35
+  start_epoch: 0
+  batch_size: 64
+  batch_size_val: 32
+  base_lr: 5.0e-05
+  lr_decay: 0.1
+  lr_multi: 0.1
+  weight_decay: 0.0
+  max_norm: 0.0
+  manual_seed: 0
+  print_freq: 100
+  exp_name: CRIS_R101
+  output_folder: outputs/refcoco
+  save_freq: 1
+  weight: null
+  resume: null
+  evaluate: true
+Distributed:
+  dist_url: tcp://localhost:8594
+  dist_backend: nccl
+  multiprocessing_distributed: true
+  world_size: 1
+  rank: 0
+TEST:
+  test_split: val
+  test_lmdb: data/refcoco/raw/val.lmdb
+  val_split: val
+  visualize: false

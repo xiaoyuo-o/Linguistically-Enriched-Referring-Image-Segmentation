@@ -431,24 +431,9 @@ class RefDataset(Dataset):
             self.keys = loads_pickle(txn.get(b'__keys__'))
 
 
-        if self.args.dataset == 'refcocog_u' :
-            img2img_path = '/data2/projects/chaeyun/CRIS_R/logit_db/refcocog_u/refcocog_u_logit_i2i_score.lmdb'
-            text2img_path =  '/data1/gxy/project/RIS/similarity/refcocog_u/t2i_similarity.lmdb'
-        elif self.args.dataset == 'refcoco' :
-            if self.args.type == 'raw':
-                img2img_path = '/data2/projects/chaeyun/CRIS_R/logit_db/refcoco/refcoco_logit_i2i_score_5k.lmdb'
-                text2img_path =  '/data1/gxy/project/RIS/similarity/refcoco/t2i_similarity.lmdb'
-            elif self.args.type == 'en':
-                img2img_path = '/data2/projects/chaeyun/CRIS_R/logit_db/refcoco/refcoco_logit_i2i_score_5k.lmdb'
-                text2img_path =  '/data1/gxy/project/RIS/similarity/refcoco/t2i_similarity_en.lmdb'
-            else:
-                img2img_path = '/data2/projects/chaeyun/CRIS_R/logit_db/refcoco/refcoco_logit_i2i_score_5k.lmdb'
-                text2img_path =  '/data1/gxy/project/RIS/similarity/refcoco/t2i_similarity.lmdb'
+        text2img_path = self.args.t2i_similarity_lmdb
+        img2img_path = self.args.i2i_similarity_lmdb
 
-        elif self.args.dataset == 'refcoco+' :
-            img2img_path = '/data2/projects/chaeyun/CRIS_R/logit_db/refcoco+/refcocop_logit_i2i_score_5k.lmdb'
-            text2img_path =  '/data1/gxy/project/RIS/similarity/refcoco+/t2i_similarity.lmdb'
-        
 
         # default setting : t2i logit
         self.t2i_env = lmdb.open(
@@ -485,16 +470,9 @@ class RefDataset(Dataset):
             self.length_new = loads_pickle(txn_new.get(b'__len__'))
             self.keys_new = loads_pickle(txn_new.get(b'__keys__'))
 
-        if self.args.dataset == 'refcocog_u' :
-            img2img_path_en = '/data2/projects/chaeyun/CRIS_R/logit_db/refcocog_u/refcocog_u_logit_i2i_score.lmdb'
-            text2img_path_en =  '/data1/gxy/project/RIS/similarity/refcocog_u/t2i_similarity_en.lmdb'
-        elif self.args.dataset == 'refcoco' :
-            img2img_path_en = '/data2/projects/chaeyun/CRIS_R/logit_db/refcoco/refcoco_logit_i2i_score_5k.lmdb'
-            text2img_path_en =  '/data1/gxy/project/RIS/similarity/refcoco/t2i_similarity_en.lmdb'
-        elif self.args.dataset == 'refcoco+' :
-            img2img_path_en = '/data2/projects/chaeyun/CRIS_R/logit_db/refcoco+/refcocop_logit_i2i_score_5k.lmdb'
-            text2img_path_en =  '/data1/gxy/project/RIS/similarity/refcoco+/t2i_similarity_en.lmdb'
-        
+        text2img_path_en = self.args.enhanced_t2i_similarity_lmdb
+        img2img_path_en = self.args.i2i_similarity_lmdb
+
 
         # default setting : t2i logit
         self.t2i_env_en = lmdb.open(
