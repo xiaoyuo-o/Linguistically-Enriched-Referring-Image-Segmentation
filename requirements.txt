@@ -15,11 +15,8 @@ loguru
 pycocotools
 matplotlib
 tqdm
-info-nce-pytorch
 nltk
 spacy
 scikit-image
 tabulate
 thop
-
-six

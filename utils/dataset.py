@@ -6,19 +6,17 @@ import html
 import cv2
 import lmdb
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageFilter
 import pickle
 import torch
 import sng_parser
 from tools import refer
 from torch.utils.data import Dataset
 import albumentations as A
-from albumentations.pytorch import ToTensorV2
 from .simple_tokenizer import SimpleTokenizer as _Tokenizer
 import math
 import random
 from torchvision.utils import save_image
-from loguru import logger
 def normalize(img_w, img_h, box, tail=True):
     xmin, ymin, xmax, ymax = box[:4]   #左下角和右上角
     new_box = [xmin/img_w, ymin/img_h, xmax/img_w, ymax/img_h]
@@ -365,20 +363,10 @@ class RefDataset(Dataset):
         self.if_two_branches = args.if_two_branches
 
 
-        each_img_sz = int(input_size/math.sqrt(args.num_bgs))   #每一个小图片的大小
-        mean = (0.48145466, 0.4578275, 0.40821073) #(0.485, 0.456, 0.406)
-        std = (0.26862954, 0.26130258, 0.27577711) #(0.229, 0.224, 0.225)
         self.resize_bg1 = A.Compose([
-            A.Resize(input_size, input_size, always_apply=True)])
-        self.resize_bg4 = A.Compose([
-            A.Resize(each_img_sz, each_img_sz, always_apply=True)],
-            additional_targets={'image1': 'image', 'image2': 'image', 'image3': 'image',
-                                'mask1': 'mask', 'mask2': 'mask', 'mask3': 'mask',})
-        self.each_img_sz = each_img_sz
-        self.transforms = A.Compose([
-            A.Normalize(mean=mean, std=std),
-            ToTensorV2 (),
+            A.Resize(input_size, input_size, always_apply=True)
         ])
+
         if self.mode == 'train':
             #  首先先实例化类
             ## Bringing out logits
@@ -394,15 +382,10 @@ class RefDataset(Dataset):
             ## Tools by refer.REFER
             #  得到instance的标号
             ref_ids = self.refer.getRefIds(split=split)
-            self.img_ids = self.refer.getImgIds(ref_ids)
             #  通过ref_ids得到对应的这个img_id
             self.ref_id2idx = dict(zip(ref_ids, range(len(ref_ids)))) # ref_id -> idx(key)
             self.idx2ref_id = dict(zip(range(len(ref_ids)), ref_ids)) # idx(key) -> ref_id
             
-            img_ids = self.refer.getImgIds(ref_ids)
-            # img_ids.sort()
-            self.img_id2idx = dict(zip(img_ids, range(len(img_ids)))) # ref_id -> idx(key)
-            self.idx2img_id = dict(zip(range(len(img_ids)), img_ids)) # idx(key) -> ref_id
         else :
             print("Test mode does not require logits of dataset")
         if self.args.blur:
@@ -410,92 +393,61 @@ class RefDataset(Dataset):
         np.random.seed()
 
 
-    # def _preload_similarity_data(self):
-    #     """预加载所有相似度数据到内存"""
-    #     # t2i 相似度数据
-    #     self.t2i_similarity_all = []
-    #     with self.t2i_env.begin(write=False) as txn:
-    #         for key in self.logit_keys:
-    #             data = txn.get(key)
-    #             self.t2i_similarity_all.append(loads_pickle(data))
 
     def _init_db(self):
-        self.env = lmdb.open(self.lmdb_dir,
-                             subdir=os.path.isdir(self.lmdb_dir),
-                             readonly=True,
-                             lock=False,
-                             readahead=False,
-                             meminit=False)
+        self.env = lmdb.open(
+            self.lmdb_dir,
+            subdir=os.path.isdir(self.lmdb_dir),
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
         with self.env.begin(write=False) as txn:
             self.length = loads_pickle(txn.get(b'__len__'))
             self.keys = loads_pickle(txn.get(b'__keys__'))
 
+        if self.mode != 'train':
+            return
 
-        text2img_path = self.args.t2i_similarity_lmdb
-        img2img_path = self.args.i2i_similarity_lmdb
-
-
-        # default setting : t2i logit
         self.t2i_env = lmdb.open(
-            text2img_path, subdir=True, max_readers=32,
-            readonly=True, lock=False,
-            readahead=False, meminit=False
+            self.args.t2i_similarity_lmdb,
+            subdir=True,
+            max_readers=32,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
         )
         with self.t2i_env.begin(write=False) as txn:
-            
-            # logit_length = loads_pickle(txn.get(b'__len__'))
             self.logit_keys = loads_pickle(txn.get(b'__keys__'))
-        
-        # self.nlp = spacy.load("en_core_web_sm")
-        
-        if not self.args.t2i_only :            
-            self.i2i_env = lmdb.open(
-                img2img_path, subdir=True, max_readers=32,
-                readonly=True, lock=False,
-                readahead=False, meminit=False
-            )
-            with self.i2i_env.begin(write=False) as txn:
-                # logit_length_i = loads_pickle(txn.get(b'__len__'))
-                self.logit_keys_i = loads_pickle(txn.get(b'__keys__'))
-                
-        
+
     def _init_db_new(self):
-        self.env_new = lmdb.open(self.new_lmdb_dir,
-                                 subdir=os.path.isdir(self.lmdb_dir),
-                                 readonly=True,
-                                 lock=False,
-                                 readahead=False,
-                                 meminit=False)
+        self.env_new = lmdb.open(
+            self.new_lmdb_dir,
+            subdir=os.path.isdir(self.lmdb_dir),
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
         with self.env_new.begin(write=False) as txn_new:
-            self.length_new = loads_pickle(txn_new.get(b'__len__'))
             self.keys_new = loads_pickle(txn_new.get(b'__keys__'))
 
-        text2img_path_en = self.args.enhanced_t2i_similarity_lmdb
-        img2img_path_en = self.args.i2i_similarity_lmdb
+        if self.mode != 'train':
+            return
 
-
-        # default setting : t2i logit
         self.t2i_env_en = lmdb.open(
-            text2img_path_en, subdir=True, max_readers=32,
-            readonly=True, lock=False,
-            readahead=False, meminit=False
+            self.args.enhanced_t2i_similarity_lmdb,
+            subdir=True,
+            max_readers=32,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
         )
         with self.t2i_env_en.begin(write=False) as txn:
-            
-            # logit_length = loads_pickle(txn.get(b'__len__'))
             self.logit_keys_en = loads_pickle(txn.get(b'__keys__'))
-        
-        # self.nlp = spacy.load("en_core_web_sm")
-        
-        if not self.args.t2i_only :            
-            self.i2i_env_en = lmdb.open(
-                img2img_path_en, subdir=True, max_readers=32,
-                readonly=True, lock=False,
-                readahead=False, meminit=False
-            )
-            with self.i2i_env_en.begin(write=False) as txn:
-                # logit_length_i = loads_pickle(txn.get(b'__len__'))
-                self.logit_keys_i_en = loads_pickle(txn.get(b'__keys__'))
 
     def __len__(self):
         return self.length
@@ -521,13 +473,11 @@ class RefDataset(Dataset):
             with env_new.begin(write=False) as txn_new:
                 byteflow_new = txn_new.get(self.keys_new[index])
             ref_new = loads_pickle(byteflow_new)
-            sents_new = ref_new['sents']
             assert ref['seg_id'] == ref_new['seg_id'], f"Mismatch between segment IDs! Dataset 1: {ref['seg_id']}, Dataset 2: {ref_new['seg_id']}"
 
 
         if self.mode == 'train':
             ref_id = self.idx2ref_id[index]
-            ref_img_id = self.refer.Refs[ref_id]['image_id']
             t2i_index = self.ref_id2idx[ref_id]
 
 
@@ -550,55 +500,6 @@ class RefDataset(Dataset):
                 target_sent_idx_en = np.random.choice(list(range(ref_new['num_sents'])), size=1, replace=False)[0] 
               #找到目标句子，一个句子对应了一种评分吗，还是一个实例有一个评分啊？
             # sent_new = sents_new[target_sent_idx_en]         
-            if not self.args.t2i_only :   
-                print("Both T2I and I2I")             
-                i2i_index = self.img_id2idx[ref_img_id]
-                with self.i2i_env.begin(write=False) as txn:
-                    bytes = str(self.logit_keys_i[i2i_index]).encode("utf-8")
-                    i2i_byteflow = txn.get(bytes)
-                i2i_similarity = loads_pickle(i2i_byteflow)
-
-                with self.i2i_env_en.begin(write=False) as txn_en:
-                    bytes = str(self.logit_keys_i_en[i2i_index]).encode("utf-8")
-                    i2i_byteflow_en = txn_en.get(bytes)
-                i2i_similarity_en = loads_pickle(i2i_byteflow_en)
-
-                invalid_choices = set([img_id for img_id, score in i2i_similarity if score > self.args.i2i_sim_thres])
-                invalid_choices_en = set([img_id for img_id, score in i2i_similarity_en if score > self.args.i2i_sim_thres])
-                chosen_invalid = random.choice([invalid_choices, invalid_choices_en])    
-            if self.args.fp_restrict :
-                #先不用这个
-                doc = self.nlp(sent)
-                target_noun = self.get_target_noun(sent, doc)
-                
-                left_right = {"left" : [0, 2],
-                            "right" : [1, 3]}
-                other_directions = {"top" :[0, 1],
-                                "high" :[0, 1],
-                                "above" :[0, 1],
-                                "bottom" :[2, 3],
-                                "low" :[2, 3],
-                                "below" :[2, 3],
-                                "under" :[2, 3],
-                                "beneath" :[2, 3]
-                                }
-
-                left_right_check = False
-                other_pos_check = False 
-
-                for lr in left_right.keys() :
-                    if lr in sent :
-                        left_right_check = True
-                        lr_cand = left_right[lr]
-                        break
-                
-                for other in other_directions.keys() :
-                    if other in sent :
-                        other_pos_check = True
-                        other_cand = other_directions[other]
-                        break       
-
-                pos_check = left_right_check or other_pos_check
             #mosic的图像的个数，即K
             if self.args.num_bgs > 1:
                 aug_prob = self.args.aug_prob
@@ -635,22 +536,29 @@ class RefDataset(Dataset):
         if num_bgs > 1 :
             if mosaic_type == 'retrieval':
                 sent_id = list(t2i_similarity.keys())[target_sent_idx]
+                candidate_pool = t2i_similarity[sent_id]
                 if self.if_two_branches:
                     sent_id_en = list(t2i_similarity_en.keys())[target_sent_idx_en]
-                if self.args.t2i_only : 
-                    invalid_choices = set([img_id for img_id, score in t2i_similarity[sent_id] if score > self.args.t2i_sim_thres])
-                    if self.if_two_branches:
-                        invalid_choices_en = set([img_id for img_id, score in t2i_similarity_en[sent_id_en] if score >self.args.t2i_sim_thres])
-                        chosen_invalid = random.choice([invalid_choices, invalid_choices_en])
-                    else:
-                        chosen_invalid = invalid_choices
-                valid_img_score_list = [pair[0] for pair in t2i_similarity[sent_id] if pair[0] not in chosen_invalid]
+                    candidate_pool = random.choice(
+                        [candidate_pool, t2i_similarity_en[sent_id_en]]
+                    )
+
+                invalid_choices = {
+                    img_id
+                    for img_id, score in candidate_pool
+                    if score > self.args.t2i_sim_thres
+                }
+                valid_img_score_list = [
+                    img_id
+                    for img_id, _ in candidate_pool
+                    if img_id not in invalid_choices
+                ]
                 len_valid = len(valid_img_score_list)
 
                 if len_valid == 0:
-                    print(f"Valid image list is 0", len(invalid_choices))
-                    valid_img_score_list = [pair[0] for pair in t2i_similarity[sent_id][-300:]]
-
+                    print("Valid image list is 0", len(invalid_choices))
+                    valid_img_score_list = [img_id for img_id, _ in candidate_pool[-300:]]
+                    len_valid = len(valid_img_score_list)
 
                 if self.args.top_k < 20 :
                     img_ids = list(np.random.choice(valid_img_score_list[:self.args.top_k], size=num_bgs-1, replace=False))
@@ -677,22 +585,11 @@ class RefDataset(Dataset):
             keys = []
             refs = []
 
-        if num_bgs == 1 :
+        if num_bgs == 1:
+            insert_idx = 0
+        else:
             insert_idx = np.random.choice(range(num_bgs))
-        else : 
-            if self.args.fp_restrict :
-            # if self.aug.fp_restrict :    
-                if left_right_check and other_pos_check :
-                    intersection = list(set(lr_cand) & set(other_cand))
-                    if intersection : insert_idx = intersection[0]
-                elif left_right_check :
-                    insert_idx = np.random.choice(lr_cand)
-                elif other_pos_check : 
-                    insert_idx = np.random.choice(other_cand)
-                else : 
-                    insert_idx = np.random.choice(range(num_bgs))
-            else : 
-                insert_idx = np.random.choice(range(num_bgs))
+
 
         refs.insert(insert_idx, ref)   #如果是测试的时候，就只有一个
 
@@ -944,24 +841,6 @@ class RefDataset(Dataset):
             is_decouple = self.is_decouple
             return img, mask, params, is_decouple
         
-    # def __del__(self):
-    #     resources = ['env', 'env_new', 't2i_env', 'i2i_env', 't2i_env_en', 'i2i_env_en']
-        
-    #     for name in resources:
-    #         if hasattr(self, name):
-    #             db = getattr(self, name)
-    #             if db is not None:
-    #                 try:
-    #                     db.close()
-    #                     # print(f"已关闭 {name} (PID: {os.getpid()})")
-    #                 except Exception as e:
-    #                     logger.error(f"关闭 {name} 失败: {str(e)}")
-    #                 finally:
-    #                     setattr(self, name, None)
-        
-    #     # 确保所有引用都被清除
-    #     if hasattr(self, 'refer'):
-    #         del self.refer        
 
     def getTransformMat(self, img_size, inverse=False):
         ori_h, ori_w = img_size

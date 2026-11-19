@@ -1,3 +1,5 @@
+> Historical upstream CRIS README retained for attribution. For this release, use the repository root README; commands and paths below refer to the upstream CRIS repository.
+
 # CRIS: CLIP-Driven Referring Image Segmentation (CVPR2022)
 
 Created by Zhaoqing Wang*, Yu Lu*, Qiang Li*, Xunqiang Tao, Yandong Guo, Mingming Gong and Tongliang Liu
@@ -10,12 +12,12 @@ CLIP-Driven Referring Image Segmentation (CRIS) framework is proposed to transfe
 
 ## Demo
 <p align="center">
-  <img src="img/demo-CRIS.gif" width="600">
+  <img src="../img/demo-CRIS.gif" width="600">
 </p>
 
 ## Framework
 <p align="center">
-  <img src="img/pipeline.png" width="600">
+  <img src="../img/pipeline.png" width="600">
 </p>
 
 ## News
@@ -50,10 +52,10 @@ Main results on G-Ref
 ## Preparation
 
 1. Environment
-   - [PyTorch](www.pytorch.org) (e.g. 1.10.0)
+   - [PyTorch](https://pytorch.org) (e.g. 1.10.0)
    - Other dependencies in `requirements.txt`
 2. Datasets
-   - The detailed instruction is in [prepare_datasets.md](tools/prepare_datasets.md)
+   - The detailed instruction is in [prepare_datasets.md](../tools/prepare_datasets.md)
 
 ## Quick Start
 
@@ -78,7 +80,7 @@ CUDA_VISIBLE_DEVICES=0 python -u test.py \
 
 ## License
 
-This project is under the MIT license. See [LICENSE](LICENSE) for details.
+This project is under the MIT license. See [LICENSE](../LICENSE) for details.
 
 ## Citation
 If you find our work useful in your research, please consider citing:

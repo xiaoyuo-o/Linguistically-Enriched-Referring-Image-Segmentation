@@ -36,7 +36,7 @@ def get_parser():
     parser = argparse.ArgumentParser(
         description='Pytorch Referring Expression Segmentation')
     parser.add_argument('--config',
-                        default='path to xxx.yaml',
+                        default=None,
                         type=str,
                         help='config file')
     parser.add_argument('--opts',

@@ -7,9 +7,6 @@ from model.clip import build_model
 from .layers import FPN, Projector, TransformerDecoder
 from tools.losses import *
 from tools.process_caption_parse import *
-from info_nce import InfoNCE
-import torch.nn.functional as F
-import math
 
 
 class SoftParserPrior(nn.Module):
@@ -30,14 +27,6 @@ class SoftParserPrior(nn.Module):
         learned = 0.1 + 0.9 * learned
         parser_prior = 0.5 + 0.5 * parser_mask.to(word.dtype).unsqueeze(-1)
         return learned * parser_prior
-
-
-def simsiam_loss(p, z):
-    # z 是目标，不反传
-    z = z.detach()
-    p = F.normalize(p, dim=-1)
-    z = F.normalize(z, dim=-1)
-    return - (p * z).sum(dim=-1).mean()
 
 
 
@@ -63,147 +52,6 @@ class FeatureToTokenDistribution(nn.Module):
         out = self.mlp(x)                  # MLP [B*H*W, L]
         out = out.view(B, H, W, -1)        # reshape [B, H, W, L]
         return out
-    
-class TextProjector(nn.Module):
-    def __init__(self, input_dim, vis_dim):
-        super().__init__()
-        self.mlp = nn.Sequential(
-            nn.Linear(input_dim, input_dim),  # 可选：加深网络
-            nn.ReLU(),
-            nn.Linear(input_dim, vis_dim)   # 最终输出为 token 序列长度 L
-        )
-
-    def forward(self, x):
-        """
-        input:
-        x: [B,L,1024]
-        output:
-        x: [B,L,vis_dim]
-        """
-        B, L, d = x.shape
-        x = x.reshape(B*L,d)
-        out = self.mlp(x)
-        out = out.view(B,L,-1)
-        return out
-
-class VisionGuidedTextAlign(nn.Module):
-    def __init__(self, embed_dim, num_heads):
-        super().__init__()
-        self.cross_attn_1 = nn.MultiheadAttention(embed_dim, num_heads, batch_first=True)
-        self.cross_attn_2 = nn.MultiheadAttention(embed_dim, num_heads, batch_first=True)
-        self.txt_proj = nn.Linear(embed_dim, embed_dim)
-        self.vis_proj = nn.Linear(embed_dim*2, embed_dim)
-        self.norm1 = nn.LayerNorm(embed_dim)
-        self.norm2 = nn.LayerNorm(embed_dim)
-        self.txt_proj_fuse = nn.Linear(embed_dim*2, embed_dim)
-        self.vis_gate_proj = nn.Sequential(
-    nn.Linear(embed_dim, embed_dim),
-    nn.ReLU(),
-    nn.Linear(embed_dim, 1),
-    nn.Sigmoid()
-)
-    @staticmethod
-    def pos1d(d_model, length):
-        """
-        :param d_model: dimension of the model
-        :param length: length of positions
-        :return: length*d_model position matrix
-        """
-        if d_model % 2 != 0:
-            raise ValueError("Cannot use sin/cos positional encoding with "
-                             "odd dim (got dim={:d})".format(d_model))
-        pe = torch.zeros(length, d_model)
-        position = torch.arange(0, length).unsqueeze(1)
-        div_term = torch.exp((torch.arange(0, d_model, 2, dtype=torch.float) *
-                              -(math.log(10000.0) / d_model)))
-        pe[:, 0::2] = torch.sin(position.float() * div_term)
-        pe[:, 1::2] = torch.cos(position.float() * div_term)
-
-        return pe.unsqueeze(1)  # n, 1, 512
-
-    @staticmethod
-    def pos2d(d_model, height, width):
-        """
-        :param d_model: dimension of the model
-        :param height: height of the positions
-        :param width: width of the positions
-        :return: d_model*height*width position matrix
-        """
-        if d_model % 4 != 0:
-            raise ValueError("Cannot use sin/cos positional encoding with "
-                             "odd dimension (got dim={:d})".format(d_model))
-        pe = torch.zeros(d_model, height, width)
-        # Each dimension use half of d_model
-        d_model = int(d_model / 2)
-        div_term = torch.exp(
-            torch.arange(0., d_model, 2) * -(math.log(10000.0) / d_model))
-        pos_w = torch.arange(0., width).unsqueeze(1)
-        pos_h = torch.arange(0., height).unsqueeze(1)
-        pe[0:d_model:2, :, :] = torch.sin(pos_w * div_term).transpose(
-            0, 1).unsqueeze(1).repeat(1, height, 1)
-        pe[1:d_model:2, :, :] = torch.cos(pos_w * div_term).transpose(
-            0, 1).unsqueeze(1).repeat(1, height, 1)
-        pe[d_model::2, :, :] = torch.sin(pos_h * div_term).transpose(
-            0, 1).unsqueeze(2).repeat(1, 1, width)
-        pe[d_model + 1::2, :, :] = torch.cos(pos_h * div_term).transpose(
-            0, 1).unsqueeze(2).repeat(1, 1, width)
-
-        return pe.reshape(-1, 1, height * width).permute(2, 1, 0)  # hw, 1, 512
-    
-    def with_pos_embed(self, tensor, pos):
-        return tensor if pos is None else tensor + pos.to(tensor.device)
-    
-    def forward(self, txt1, txt2, txt1_pos, txt2_pos,
-                vis, txt1_pad_mask=None, txt2_pad_mask=None):
-        B, C, H, W = vis.size()
-
-        # position encoding
-        vis_pos = self.pos2d(C, H, W)
-        # print(vis_pos.shape)
-        # 加入位置编码
-        txt1_in = txt1 + txt1_pos
-        txt2_in = txt2 + txt2_pos
-        vis = vis.reshape(B, C, -1).permute(2, 0, 1)   #676,b,c
-        # vis_pos = vis_pos.permute(1,0,2)
-        vis_with_pos = self.with_pos_embed(vis, vis_pos)  #676,b,c
-        vis_in = self.vis_proj(vis_with_pos.permute(1, 0, 2))  # [B, 676, 512]
-        # Vision-guided attention key/value: 用视觉特征指引 cross-attention
-        query1 = self.txt_proj(txt2_in)
-        key_1 = self.txt_proj(txt1_in)
-
-
-        #双向： 
-        query2 = self.txt_proj(txt1_in)
-        key_2 = self.txt_proj(txt2_in)
-        txt1_updated, _ = self.cross_attn_2(query=query2,
-                                            key=key_2,
-                                            value=txt2,
-                                            key_padding_mask=txt2_pad_mask)
-        gate2 = torch.sigmoid(self.vis_gate_proj(vis_in.mean(1, keepdim=True)))
-        
-        # query = self.txt_proj(txt1_in) + vis_in.mean(1, keepdim=True)
-        # key_1 = self.txt_proj(txt2_in) + vis_in.mean(1, keepdim=True)  # 可选：将图像引入 key
-        # key_2 = self.txt_proj(txt1_in) + vis_in.mean(1, keepdim=True)
-        # key_1 = self.txt_proj(txt2_in)
-        # Cross Attention: txt1 attends to txt2 (guided by vision)
-        txt2_updated, _ = self.cross_attn_1(query=query1,
-                                            key=key_1,
-                                            value=txt1,
-                                            key_padding_mask=txt1_pad_mask)
-        gate1 = torch.sigmoid(self.vis_gate_proj(vis_in.mean(1, keepdim=True)))  # [B, 1, C]
-        txt2_updated = txt2 + gate1 * txt2_updated       
-        txt2_updated = self.norm1(txt2_updated)
-
-        # Cross Attention: txt2 attends to txt1 (guided by vision)
-        # txt2_updated, _ = self.cross_attn_2(query=txt2_in,
-        #                                     key=key_2,
-        #                                     value=txt1,
-        #                                     key_padding_mask=txt1_pad_mask)
-        # txt2_updated = self.norm2(txt2 + txt2_updated)  #b,n,dim
-        
-        # txt_updated = torch.concat([txt1_updated, txt2_updated], dim=-1)
-        # txt_updated = self.txt_proj_fuse(txt_updated)
-        return txt2_updated
     
 
 class CRIS(nn.Module):
@@ -235,13 +83,6 @@ class CRIS(nn.Module):
         self.soft_parser_prior = SoftParserPrior(cfg.word_dim) if self.use_soft_parser_prior else None
 
 
-        # self.state_fuse_linear = nn.Linear(cfg.word_dim*2,cfg.word_dim)
-        # self.vis_guided_proj = nn.Conv2d(in_channels=cfg.word_dim*2, out_channels=cfg.word_dim, kernel_size=1)
-        # #两种text做交互的模块：
-        # self.vision_guided_text_align = VisionGuidedTextAlign(embed_dim=cfg.word_dim, num_heads=cfg.num_head)
-        #写一个能够判断是否是简单还是复杂文本的MLP
-
-        self.info_nce = InfoNCE(negative_mode='paired')
         self.parser_noise_ratio = float(getattr(cfg, "parser_noise_ratio", 0.0))
         self.parser_noise_mode = getattr(cfg, "parser_noise_mode", "flip")
 

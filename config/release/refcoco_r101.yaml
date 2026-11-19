@@ -14,12 +14,9 @@ DATA:
   type: raw
   t2i_similarity_lmdb: data/refcoco/similarity/t2i_similarity.lmdb
   enhanced_t2i_similarity_lmdb: data/refcoco/similarity/t2i_similarity_en.lmdb
-  i2i_similarity_lmdb: data/refcoco/similarity/i2i_similarity.lmdb
 aug:
-  num_bgs: 1
+  num_bgs: 4
   blur: false
-  t2i_only: true
-  fp_restrict: false
   aug_prob: 0.6
   retrieval_epoch: 14
   mix_grid: false
@@ -28,7 +25,6 @@ aug:
   top_k: 400
   move_crs_pnt: false
   rand_crs: false
-  i2i_sim_thres: 0.85
   t2i_sim_thres: 0.25
 TRAIN:
   clip_pretrain: weights/RN101.pt

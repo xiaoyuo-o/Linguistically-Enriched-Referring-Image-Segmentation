@@ -11,7 +11,8 @@ This repository is being prepared for public release. The RefCOCO checkpoint and
 ## Main components
 
 - `utils/dataset.py`: paired original/enhanced data loading and SAMA candidate retrieval.
-- `model/segmenter.py`: CRIS model, dual-branch forward path, parser-guided features, and DTVI vision-guided text interaction.
+- `model/segmenter.py`: CRIS model, dual-branch forward path, and parser-guided features.
+- `model/layers.py`: DTVI interaction inside the Transformer decoder.
 - `engine/engine.py`: dual-branch optimization and validation.
 - `train.py`: distributed training entry point.
 - `evaluate.py`: reproducible single-branch evaluation for original or reconstructed expressions.
@@ -50,14 +51,13 @@ data/
     ├── masks/
     └── similarity/
         ├── t2i_similarity.lmdb/
-        ├── t2i_similarity_en.lmdb/
-        └── i2i_similarity.lmdb/
+        └── t2i_similarity_en.lmdb/
 weights/
 ├── RN101.pt
 └── cris_r101_refcoco.pth
 ```
 
-The original and enhanced LMDBs must preserve sample correspondence. The three similarity databases contain the SAMA retrieval candidates used during training.
+The original and enhanced LMDBs must preserve sample correspondence. The similarity databases contain the SAMA retrieval candidates used during SAMA-enabled training.
 
 ## Training
 
@@ -105,6 +105,19 @@ cfd7edf8f9bd1fb8d2988f743a184e603af9b02d6be2caa88400b05f3aa61947
 ```
 
 See [weights/README.md](weights/README.md) for checkpoint details.
+
+## Single-image inference
+
+The demo produces a binary mask and an image overlay. A ground-truth mask is optional; when supplied, the demo also reports IoU.
+
+```bash
+python demo_infer.py \
+  --config config/release/refcoco_r101.yaml \
+  --model_ckpt weights/cris_r101_refcoco.pth \
+  --image path/to/image.jpg \
+  --sentence "the object described by the expression" \
+  --outdir outputs/demo
+```
 
 ## Citation
 
