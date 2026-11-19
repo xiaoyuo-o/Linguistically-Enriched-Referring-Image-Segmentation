@@ -6,6 +6,9 @@ Official implementation of the CRIS-based experiments in:
 
 Paper DOI: https://doi.org/10.1109/TIP.2026.3748959
 
+
+![Method overview](img/figure5.png)
+
 ## Scope of this release
 
 This repository publishes the proposed framework using **CRIS as the representative RIS architecture**.
@@ -145,14 +148,15 @@ If your extracted archives use different locations, edit the paths in
 `config/release/refcoco_r101.yaml`. Keep the relative correspondence between
 the original and reconstructed records unchanged.
 
-## Pretrained weights
+## Required pretrained backbone
 
-The CLIP visual-language backbone and the released CRIS checkpoint are not committed to Git because of their size.
+Training uses the OpenAI CLIP ResNet-101 backbone. Download the original TorchScript weight and place it at:
 
-- CLIP backbone: place the RN101 TorchScript weight at `weights/RN101.pt`.
-- CRIS checkpoint: place the released file at `weights/cris_r101_refcoco.pth`.
+```text
+weights/RN101.pt
+```
 
-The checkpoint SHA-256 is recorded in [weights/README.md](weights/README.md). Before public release, replace the download placeholder there and in `CITATION.cff` with the actual GitHub repository or release-asset URL.
+The trained experiment checkpoint is not included in this source release. For local evaluation, replace the checkpoint path with your own trained checkpoint.
 
 ## Training
 
@@ -186,7 +190,7 @@ Original expressions:
 ```bash
 CUDA_VISIBLE_DEVICES=0 python evaluate.py \
   --config config/release/refcoco_r101.yaml \
-  --checkpoint weights/cris_r101_refcoco.pth \
+  --checkpoint path/to/your_checkpoint.pth \
   --branch raw
 ```
 
@@ -195,11 +199,11 @@ Reconstructed expressions:
 ```bash
 CUDA_VISIBLE_DEVICES=0 python evaluate.py \
   --config config/release/refcoco_r101.yaml \
-  --checkpoint weights/cris_r101_refcoco.pth \
+  --checkpoint path/to/your_checkpoint.pth \
   --branch reconstructed
 ```
 
-The verified RefCOCO validation results for the released checkpoint are:
+The verified RefCOCO validation results for the local checkpoint are:
 
 | Branch | mIoU | oIoU |
 | --- | ---: | ---: |
@@ -215,7 +219,7 @@ The demo creates a binary mask and an overlay image. A ground-truth mask is opti
 ```bash
 CUDA_VISIBLE_DEVICES=0 python demo_infer.py \
   --config config/release/refcoco_r101.yaml \
-  --model_ckpt weights/cris_r101_refcoco.pth \
+  --model_ckpt path/to/your_checkpoint.pth \
   --image path/to/image.jpg \
   --sentence "the object described by the expression" \
   --outdir outputs/demo
@@ -243,6 +247,29 @@ If you use the CRIS implementation, also cite the original CRIS paper and retain
 
 This release is distributed under the MIT License. Third-party components remain subject to their original licenses and notices.
 
+
+### Reconstructed expression files
+
+The official RefCOCO, RefCOCO+ and RefCOCOg images, `instances.json`, and
+original `refs(unc).p` files should be downloaded from their original sources.
+The three reconstructed expression files are provided as assets on the GitHub
+Releases page:
+
+```text
+data/refer/refcoco/refs(unc_en).p
+data/refer/refcoco+/refs(unc_en).p
+data/refer/refcocog/refs(umd_en).p
+```
+
+Download the three files from the release corresponding to the code version
+and place each file at the path above. These files are larger than GitHub's
+regular repository file limit, so they are not stored in the source tree.
+After placing them, run `tools/data_process.py` with
+`--expression_type en`, then run `tools/folder2lmdb.py` to create the
+reconstructed LMDB files used by training.
+
+The exact Release URL will be added after the first data release is created:
+`https://github.com/xiaoyuo-o/Linguistically-Enriched-Referring-Image-Segmentation/releases`
 
 ### SAMA candidate databases
 
