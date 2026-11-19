@@ -6,7 +6,7 @@ DATA:
   val_lmdb: data/refcoco/raw/val.lmdb
   val_split: val
   new_val_lmdb: data/refcoco/enhanced/val.lmdb
-  mask_root: data/refcoco/masks
+  mask_root: data/refcoco/masks/refcoco
   data_root: data/refer
   split: unc
   is_decouple: true
