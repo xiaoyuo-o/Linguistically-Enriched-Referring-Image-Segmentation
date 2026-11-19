@@ -242,3 +242,18 @@ If you use the CRIS implementation, also cite the original CRIS paper and retain
 ## License
 
 This release is distributed under the MIT License. Third-party components remain subject to their original licenses and notices.
+
+
+### SAMA candidate databases
+
+SAMA reads two CLIP text-to-image candidate databases during training. They are generated artifacts and should be uploaded as compressed assets on the GitHub Releases page rather than committed to Git. After extraction, place them at:
+
+```text
+data/refcoco/similarity/
+├── t2i_similarity.lmdb/
+└── t2i_similarity_en.lmdb/
+```
+
+The databases can be regenerated with `tools/build_t2i_similarity.py`. Run it once with `--expression-type raw` and once with `--expression-type en`; the latter reads `refs(unc_en).p`. The script uses OpenAI CLIP, keeps the top-5000 image candidates for each expression, and writes the LMDB format consumed by SAMA.
+
+The repository contains code only. The official RefCOCO, RefCOCO+ and RefCOCOg files are downloaded from their original sources. The three reconstructed expression files (`refs(unc_en).p`) and optional precomputed candidate databases should be attached to the repository's Releases page. Replace the placeholder Release URL with the final asset links after publishing.

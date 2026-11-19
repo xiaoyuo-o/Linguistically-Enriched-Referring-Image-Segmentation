@@ -17,12 +17,13 @@ parser.add_argument('--dataset',
                     default='refcoco')
 parser.add_argument('--split', type=str, default='umd')
 parser.add_argument('--generate_mask', action='store_true')
+parser.add_argument('--expression_type', choices=['raw', 'en'], default='raw')
 args = parser.parse_args()
 img_path = os.path.join(args.data_root, 'images', 'train2014')
 
 h, w = (416, 416)
 
-refer = REFER(args.data_root, args.dataset, args.split)
+refer = REFER(args.data_root, args.dataset, args.split, dataset_type=args.expression_type)
 
 print('dataset [%s_%s] contains: ' % (args.dataset, args.split))
 ref_ids = refer.getRefIds()
@@ -80,8 +81,9 @@ def bbox_process(bbox):
 
 
 def prepare_dataset(dataset, splits, output_dir, generate_mask=False):
-    ann_path = os.path.join(output_dir, 'anns', dataset)
-    mask_path = os.path.join(output_dir, 'masks', dataset)
+    suffix = '' if args.expression_type == 'raw' else '_en'
+    ann_path = os.path.join(output_dir, 'anns', dataset + suffix)
+    mask_path = os.path.join(output_dir, 'masks', dataset + suffix)
     if not os.path.exists(ann_path):
         os.makedirs(ann_path)
     if not os.path.exists(mask_path):
