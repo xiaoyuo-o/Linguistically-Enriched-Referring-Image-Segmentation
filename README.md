@@ -141,7 +141,6 @@ CRIS_release/
 │       └── similarity/
 └── weights/
     ├── RN101.pt
-    └── cris_r101_refcoco.pth
 ```
 
 If your extracted archives use different locations, edit the paths in
