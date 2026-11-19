@@ -115,7 +115,7 @@ def tokenize_en(texts: Union[str, List[str]],
         # text = text.replace('—', '-')  # 替换 em-dash
 
         cleaned_text = whitespace_clean(basic_clean(text)).lower()
-        
+
 
         # 按正则拆成 token
         tokens = re.findall(_tokenizer.pat, cleaned_text)
@@ -133,7 +133,7 @@ def tokenize_en(texts: Union[str, List[str]],
                 #     if bpe_token not in _tokenizer.encoder:
                 #         print(f"[Warning] Token not found in encoder: {bpe_token}")
                 #         continue
-                
+
                 token_ids = [_tokenizer.encoder[bpe_token] for bpe_token in bpe_result]
 
                 bpe_tokens.extend(token_ids)
@@ -205,7 +205,7 @@ def generate_anno(caption):
         if (node["node_id"] != 0) and (node["node_type"] == "Object"):
             auxi_entity = node
             break
-    anno["auxi_entity"] = auxi_entity            
+    anno["auxi_entity"] = auxi_entity
         #caption_en decoupling
     anno["utterance"] = caption
     return anno
@@ -221,7 +221,7 @@ def get_token_positive_map_by_parse(anno, max_token, char_to_token_list, MAX_NUM
     pron_char_span = np.zeros((MAX_NUM_OBJ, 2))     # pron
     rel_char_span = np.zeros((MAX_NUM_OBJ, 2))      # rel
     if graph_node[0]['node_id'] != 0:
-        print(1) 
+        print(1)
     assert graph_node[0]['node_id'] == 0   #这里替换成找graph_node[i]["node_id"] == 0，找i
     main_entity_target = graph_node[0]['target_char_span']
     main_entity_modify = graph_node[0]['mod_char_span']
@@ -282,7 +282,7 @@ def get_token_positive_map_by_parse(anno, max_token, char_to_token_list, MAX_NUM
     gt_map_p = get_positive_map(pron_char_span[:num_p], max_token, char_to_token_list)
     gt_map_o = get_positive_map(other_target_char_span[:num_o], max_token, char_to_token_list)
     gt_map_r = get_positive_map(rel_char_span[:num_r], max_token, char_to_token_list)
-    
+
     gt_map_t = gt_map_t.sum(axis=0)
     gt_map_m = gt_map_m.sum(axis=0)
     gt_map_p = gt_map_p.sum(axis=0)
@@ -343,8 +343,8 @@ class RefDataset(Dataset):
         self.split = split
         self.mode = mode
 
-        self.img_sz = input_size  # 
-        
+        self.img_sz = input_size  #
+
         self.input_size = (input_size, input_size)
         self.word_length = word_length
         self.word_en_length = word_en_length
@@ -355,7 +355,7 @@ class RefDataset(Dataset):
         self.length = info[dataset][split]
         self.env = None
         self.env_new = None
-        self.args = args  # 
+        self.args = args  #
 
         self.is_decouple = is_decouple
 
@@ -385,7 +385,7 @@ class RefDataset(Dataset):
             #  通过ref_ids得到对应的这个img_id
             self.ref_id2idx = dict(zip(ref_ids, range(len(ref_ids)))) # ref_id -> idx(key)
             self.idx2ref_id = dict(zip(range(len(ref_ids)), ref_ids)) # idx(key) -> ref_id
-            
+
         else :
             print("Test mode does not require logits of dataset")
         if self.args.blur:
@@ -451,7 +451,7 @@ class RefDataset(Dataset):
 
     def __len__(self):
         return self.length
-    
+
     def set_epoch(self, epoch):
         self.current_epoch = epoch
 
@@ -497,25 +497,25 @@ class RefDataset(Dataset):
             target_sent_idx = np.random.choice(list(range(ref['num_sents'])), size=1, replace=False)[0]
             sent = ref['sents'][target_sent_idx]
             if self.if_two_branches:
-                target_sent_idx_en = np.random.choice(list(range(ref_new['num_sents'])), size=1, replace=False)[0] 
-              #找到目标句子，一个句子对应了一种评分吗，还是一个实例有一个评分啊？
-            # sent_new = sents_new[target_sent_idx_en]         
+                target_sent_idx_en = np.random.choice(list(range(ref_new['num_sents'])), size=1, replace=False)[0]
+
+            # sent_new = sents_new[target_sent_idx_en]
             #mosic的图像的个数，即K
             if self.args.num_bgs > 1:
                 aug_prob = self.args.aug_prob
-                
+
                 # Before retrieval_epoch: One Image or Random Mosaic
                 if self.current_epoch < self.args.retrieval_epoch:
-                    if self.args.mix_grid : 
+                    if self.args.mix_grid :
                         num_bgs = np.random.choice([1, 4, 9], p=[1-aug_prob, aug_prob/2, aug_prob/2]) #
                         mosaic_type = 'random'
                     else :
                         num_bgs = np.random.choice([1, 4], p=[1-aug_prob, aug_prob]) #
                         mosaic_type = 'random'
-                # Retrieval 
+                # Retrieval
                 else:
                     rand_prob = self.args.rand_prob
-                    retr_prob = self.args.retr_prob                  
+                    retr_prob = self.args.retr_prob
                     # After retrieval_epoch: Decide between One Image, Random Mosaic, or Retrieval Based Mosaic
                     choice = np.random.choice(['one', 'random', 'retrieval'], p=[1-(rand_prob + retr_prob), rand_prob, retr_prob])
                     mosaic_type = choice
@@ -532,7 +532,7 @@ class RefDataset(Dataset):
         else :
             num_bgs = 1
             mosaic_type ='one'
-        ## Choosing dataloader strategy        
+        ## Choosing dataloader strategy
         if num_bgs > 1 :
             if mosaic_type == 'retrieval':
                 sent_id = list(t2i_similarity.keys())[target_sent_idx]
@@ -566,14 +566,14 @@ class RefDataset(Dataset):
                     img_ids = list(np.random.choice(valid_img_score_list, size=num_bgs-1, replace=True))
                 else :
                     img_ids = list(np.random.choice(valid_img_score_list[:self.args.top_k], size=num_bgs-1, replace=True))
-                    
+
                 ref_int = [self.refer.imgToRefs[i][0]['ref_id'] for i in img_ids]
                 keys = [str(self.ref_id2idx[k]).encode('utf-8') for k in ref_int]
-                                
+
             else:  # mosaic_type == 'random'
                 # Random Mosaic
                 keys = list(np.random.choice(self.keys, size=num_bgs-1, replace=False))
-                
+
             refs = []
             for key in keys:
                 with env.begin(write=False) as txn:
@@ -596,30 +596,30 @@ class RefDataset(Dataset):
 
         # if self.args.aug.tgt_selection == 'fixed':
         target_idx = insert_idx #验证或者测试，target_idx=0
-            
-        
-        
+
+
+
         # load items
         imgs, masks, sents_arr, seg_ids = [], [], [], []
         org_img_sizes = []
         for ref in refs:
-            
+
             ori_img = cv2.imdecode(np.frombuffer(ref['img'], np.uint8),
                                 cv2.IMREAD_COLOR)
             img = cv2.cvtColor(ori_img, cv2.COLOR_BGR2RGB)
             imgs.append(img)
             org_img_sizes.append(img.shape[:2])
-            
+
             mask = cv2.imdecode(np.frombuffer(ref['mask'], np.uint8),
                     cv2.IMREAD_GRAYSCALE)
             mask = mask / 255.
             masks.append(mask)
-            
+
             seg_id = ref['seg_id']
             seg_ids.append(seg_id)
             sents_arr.append(ref['sents'])
-                
-            
+
+
         # image resize and apply 4in1 augmentation
         if num_bgs==1:
             resized = self.resize_bg1(image=imgs[0], mask=masks[0])
@@ -631,7 +631,7 @@ class RefDataset(Dataset):
                     print("Cross point random shift")
                     crs_y = np.random.randint(0, self.img_sz+1)
                     crs_x = np.random.randint(0, self.img_sz+1)
-                else : 
+                else :
                     print("Cross point shift within range")
                     quarter_sz = self.each_img_sz/2
                     crs_y = np.random.randint(quarter_sz, self.img_sz+1-quarter_sz)
@@ -651,7 +651,7 @@ class RefDataset(Dataset):
                 y_end = y_start + crs_y
                 x_start = col * crs_x
                 x_end = x_start + crs_x
-                
+
                 if y_end > self.img_sz or x_end > self.img_sz:
                     img_resized = np.zeros([crs_y, crs_x, 3])
                     mask_resized = np.zeros([crs_y, crs_x])
@@ -669,16 +669,16 @@ class RefDataset(Dataset):
             imgs = imgs_resized
             masks = masks_resized
 
-            
+
             # scale effect ablation
             if self.args.blur:
                 imgs = [np.asarray(Image.fromarray(x).filter(self.blur)) if i!=insert_idx else x for i, x in enumerate(imgs)]
-            
+
             num_rows = num_cols = int(math.sqrt(num_bgs))
             idxs = [(i*num_cols,i*num_cols+num_cols) for i in range(num_rows)]
             img = [np.concatenate(imgs[_from:_to], axis=1) for (_from, _to) in idxs]
             img = np.concatenate(img, axis=0).astype(np.uint8)
-            
+
             masks_arr = []
             for bg_idx in range(num_bgs):
                 mask = masks[bg_idx]
@@ -688,10 +688,10 @@ class RefDataset(Dataset):
                 masks_arr.append(mask)
             masks = masks_arr
 
-        mask = masks[target_idx]    
+        mask = masks[target_idx]
         mask = mask.astype(np.uint8)
         # mask[mask>0] = 1
-        
+
         img_size = img.shape[:2]
         mat, mat_inv = self.getTransformMat(img_size, True)
         img = cv2.warpAffine(
@@ -704,7 +704,7 @@ class RefDataset(Dataset):
         sents = sents_arr[target_idx]
 
 
- 
+
         if self.mode == 'train':
             mask = cv2.warpAffine(mask,
                                 mat,
@@ -840,7 +840,7 @@ class RefDataset(Dataset):
             }
             is_decouple = self.is_decouple
             return img, mask, params, is_decouple
-        
+
 
     def getTransformMat(self, img_size, inverse=False):
         ori_h, ori_w = img_size

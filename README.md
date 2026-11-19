@@ -1,46 +1,96 @@
-# DRERIS-CRIS
+# DRERIS: CRIS Implementation
 
-Official CRIS-based implementation for **Rethinking Language Bias in Referring Image Segmentation via Linguistically Enriched Data Reconstruction and Semantic Alignment** (IEEE Transactions on Image Processing, DOI: [10.1109/TIP.2026.3748959](https://doi.org/10.1109/TIP.2026.3748959)).
+Official implementation of the CRIS-based experiments in:
 
-This release contains the CRIS experiments used to study original and linguistically enriched referring expressions. It includes the SAMA sampling pipeline, DTVI interaction module, dual-branch training, and independent evaluation of either branch.
+**Rethinking Language Bias in Referring Image Segmentation via Linguistically Enriched Data Reconstruction and Semantic Alignment**
 
-## Code status
+Paper DOI: https://doi.org/10.1109/TIP.2026.3748959
 
-This repository is being prepared for public release. The RefCOCO checkpoint and reconstructed datasets are not committed to Git. Download links will be added before publication.
+## Scope of this release
 
-## Main components
+This repository publishes the proposed framework using **CRIS as the representative RIS architecture**.
 
-- `utils/dataset.py`: paired original/enhanced data loading and SAMA candidate retrieval.
-- `model/segmenter.py`: CRIS model, dual-branch forward path, and parser-guided features.
-- `model/layers.py`: DTVI interaction inside the Transformer decoder.
-- `engine/engine.py`: dual-branch optimization and validation.
-- `train.py`: distributed training entry point.
-- `evaluate.py`: reproducible single-branch evaluation for original or reconstructed expressions.
-- `config/release/refcoco_r101.yaml`: public RefCOCO R101 configuration.
+It includes:
 
-The implementation is derived from the official [CRIS](https://github.com/DerrickWang005/CRIS.pytorch) codebase. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for attribution.
+- paired training on original and reconstructed referring expressions;
+- the SAMA semantic-aware mosaic sampling strategy;
+- the DTVI component-aware text-visual interaction;
+- dual-branch training with shared parameters;
+- single-branch evaluation and single-image inference.
+
+This repository does **not** include the LAVT or DETRIS implementations. The paper applies the same design principle to multiple RIS architectures, but this public code release contains only the CRIS integration. The MLLM-based caption reconstruction pipeline and the reconstructed dataset files are also distributed separately.
+
+The implementation is based on the official [CRIS repository](https://github.com/DerrickWang005/CRIS.pytorch). Please read [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) before redistribution.
+
+## Repository layout
+
+```text
+CRIS_release/
+├── config/release/refcoco_r101.yaml   # public RefCOCO configuration
+├── train.py                            # distributed dual-branch training
+├── evaluate.py                         # original/reconstructed evaluation
+├── demo_infer.py                       # single-image inference
+├── model/                              # CRIS, DTVI decoder and CLIP modules
+├── engine/                             # training and validation loops
+├── utils/dataset.py                    # paired data loading and SAMA
+├── tools/process_caption_parse.py      # text component masks for DTVI
+├── weights/                            # weight instructions and checksums
+├── docs/                               # historical upstream CRIS README
+├── LICENSE
+└── THIRD_PARTY_NOTICES.md
+```
 
 ## Installation
 
-A CUDA-enabled PyTorch environment is required. The experiments were developed with Python 3.8.
+The experiments use Python 3.8 and a CUDA-enabled PyTorch environment.
+
+Install PyTorch and torchvision versions compatible with the CUDA driver first, then install the remaining dependencies:
 
 ```bash
 conda create -n dreris python=3.8 -y
 conda activate dreris
+
+# Install the matching CUDA build of PyTorch from https://pytorch.org
 pip install torch torchvision
 pip install -r requirements.txt
+
 python -m spacy download en_core_web_sm
+python -m nltk.downloader wordnet omw-1.4
 ```
 
-Set `NLTK_DATA` only when the NLTK resources are stored outside its standard search locations.
+Run all commands from the repository root. If NLTK resources are stored in a custom directory, set `NLTK_DATA` before running.
 
-## Data layout
+## Data preparation
 
-Update `config/release/refcoco_r101.yaml` if your files use a different layout.
+The release uses the official RefCOCO metadata and images together with the
+processed original/reconstructed LMDB files.
+
+### 1. Official RefCOCO files
+
+After downloading the official RefCOCO package, arrange it as follows:
 
 ```text
 data/
-├── refer/
+└── refer/
+    ├── images/
+    │   └── train2014/
+    │       ├── COCO_train2014_000000000009.jpg
+    │       └── ...
+    └── refcoco/
+        ├── refs(unc).p
+        └── instances.json
+```
+
+The `data_root` field in the public configuration points to `data/refer`.
+The `refs(unc).p` file and `instances.json` must stay inside
+`data/refer/refcoco/`; do not place them directly under `data/refer/`.
+
+### 2. Processed original and reconstructed data
+
+Place the processed files from the release data package as follows:
+
+```text
+data/
 └── refcoco/
     ├── raw/
     │   ├── train.lmdb/
@@ -49,38 +99,89 @@ data/
     │   ├── train.lmdb/
     │   └── val.lmdb/
     ├── masks/
+    │   └── refcoco/
+    │       └── <segment_id>.png
     └── similarity/
         ├── t2i_similarity.lmdb/
         └── t2i_similarity_en.lmdb/
-weights/
-├── RN101.pt
-└── cris_r101_refcoco.pth
 ```
 
-The original and enhanced LMDBs must preserve sample correspondence. The similarity databases contain the SAMA retrieval candidates used during SAMA-enabled training.
+- `raw/` contains the original RefCOCO expressions.
+- `enhanced/` contains the reconstructed expressions generated by our data
+  reconstruction pipeline.
+- `masks/refcoco/` contains the target masks indexed by segment ID.
+- `similarity/` contains the original-caption and reconstructed-caption T2I
+  candidate pools used by SAMA during training.
+
+The raw and enhanced LMDB records must preserve sample correspondence: records
+at the same index must refer to the same target segment. The reconstructed
+dataset is not the official RefCOCO download and must be downloaded separately.
+The MLLM reconstruction pipeline and dataset files are not included in this
+code repository.
+
+### 3. Final release layout
+
+With both packages installed, the relevant layout is:
+
+```text
+CRIS_release/
+├── data/
+│   ├── refer/
+│   │   ├── images/train2014/
+│   │   └── refcoco/
+│   │       ├── refs(unc).p
+│   │       └── instances.json
+│   └── refcoco/
+│       ├── raw/
+│       ├── enhanced/
+│       ├── masks/refcoco/
+│       └── similarity/
+└── weights/
+    ├── RN101.pt
+    └── cris_r101_refcoco.pth
+```
+
+If your extracted archives use different locations, edit the paths in
+`config/release/refcoco_r101.yaml`. Keep the relative correspondence between
+the original and reconstructed records unchanged.
+
+## Pretrained weights
+
+The CLIP visual-language backbone and the released CRIS checkpoint are not committed to Git because of their size.
+
+- CLIP backbone: place the RN101 TorchScript weight at `weights/RN101.pt`.
+- CRIS checkpoint: place the released file at `weights/cris_r101_refcoco.pth`.
+
+The checkpoint SHA-256 is recorded in [weights/README.md](weights/README.md). Before public release, replace the download placeholder there and in `CITATION.cff` with the actual GitHub repository or release-asset URL.
 
 ## Training
 
-`train.py` launches one worker per visible GPU. For example:
+The public configuration enables the dual-branch CRIS experiment and SAMA:
 
 ```bash
+cd CRIS_release
+
 CUDA_VISIBLE_DEVICES=0,1,2,3 python train.py \
   --config config/release/refcoco_r101.yaml
 ```
 
-Override existing configuration fields with `--opts`:
+The configuration uses shared model parameters for the original and reconstructed branches. SAMA uses the two T2I candidate pools and supports the paper's 2x2 mosaic setting. Set `aug.mix_grid: true` in the YAML to enable the optional 3x3 mosaic ablation.
+
+For a smaller run, override existing configuration fields:
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python train.py \
+CUDA_VISIBLE_DEVICES=0,1 python train.py \
   --config config/release/refcoco_r101.yaml \
   --opts TRAIN.batch_size 8 TRAIN.batch_size_val 8
 ```
 
+Training outputs are written below `outputs/refcoco/`.
+
 ## Evaluation
 
-Place the released checkpoint at `weights/cris_r101_refcoco.pth`.
+Evaluation accepts one checkpoint and evaluates one expression branch at a time. It does not require the SAMA similarity databases.
 
-Original-expression branch:
+Original expressions:
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 python evaluate.py \
@@ -89,7 +190,7 @@ CUDA_VISIBLE_DEVICES=0 python evaluate.py \
   --branch raw
 ```
 
-Reconstructed-expression branch:
+Reconstructed expressions:
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 python evaluate.py \
@@ -98,20 +199,21 @@ CUDA_VISIBLE_DEVICES=0 python evaluate.py \
   --branch reconstructed
 ```
 
-The evaluator reports mIoU, oIoU, and precision at IoU thresholds 0.5 through 0.9. The verified RefCOCO validation mIoU values for the release checkpoint are 72.45 (original) and 58.95 (reconstructed). Its SHA-256 is:
+The verified RefCOCO validation results for the released checkpoint are:
 
-```text
-cfd7edf8f9bd1fb8d2988f743a184e603af9b02d6be2caa88400b05f3aa61947
-```
+| Branch | mIoU | oIoU |
+| --- | ---: | ---: |
+| Original expressions | 72.45 | 70.25 |
+| Reconstructed expressions | 58.95 | 51.54 |
 
-See [weights/README.md](weights/README.md) for checkpoint details.
+The evaluator also reports precision at IoU thresholds 0.5, 0.6, 0.7, 0.8 and 0.9.
 
 ## Single-image inference
 
-The demo produces a binary mask and an image overlay. A ground-truth mask is optional; when supplied, the demo also reports IoU.
+The demo creates a binary mask and an overlay image. A ground-truth mask is optional; when supplied, the demo also reports IoU.
 
 ```bash
-python demo_infer.py \
+CUDA_VISIBLE_DEVICES=0 python demo_infer.py \
   --config config/release/refcoco_r101.yaml \
   --model_ckpt weights/cris_r101_refcoco.pth \
   --image path/to/image.jpg \
@@ -119,20 +221,24 @@ python demo_infer.py \
   --outdir outputs/demo
 ```
 
+Add `--if_parse` when the input sentence should use the parser-guided component masks.
+
 ## Citation
 
 ```bibtex
 @article{zhang2026rethinking,
-  title={Rethinking Language Bias in Referring Image Segmentation via Linguistically Enriched Data Reconstruction and Semantic Alignment},
-  author={Zhang, Lu and Guo, Xiaoyu and Zhuge, Yunzhi and Zhang, Wenbo and Hu, Ping and Lu, Huchuan and He, You},
+  title={Rethinking Language Bias in Referring Image Segmentation via
+         Linguistically Enriched Data Reconstruction and Semantic Alignment},
+  author={Zhang, Lu and Guo, Xiaoyu and Zhuge, Yunzhi and Zhang, Wenbo and
+          Hu, Ping and Lu, Huchuan and He, You},
   journal={IEEE Transactions on Image Processing},
   year={2026},
   doi={10.1109/TIP.2026.3748959}
 }
 ```
 
-Please also cite CRIS when using this implementation.
+If you use the CRIS implementation, also cite the original CRIS paper and retain the notices in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## License
 
-The code is released under the MIT License. Third-party components remain subject to their original notices and licenses.
+This release is distributed under the MIT License. Third-party components remain subject to their original licenses and notices.
